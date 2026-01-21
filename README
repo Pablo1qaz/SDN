@@ -4,6 +4,12 @@ sudo mn --custom topo.py --topo mytopo --controller=remote,ip=127.0.0.1,port=665
 
 Nasłuchiwanie na serwerze iperfem:
 
-iperf -s -u -p 5001
-iperf -s -u -p 5002
+iperf -s -u -p 5001 -i 1
+iperf -s -u -p 5002 -i 1
 iperf -s -p 5003
+
+przypisanie kolejek:
+
+sudo ovs-vsctl set Port s1-eth4 qos=@newqos  -- --id=@newqos create QoS type=linux-htb other-config:max-rate=100000000 queues=0=@q0,1=@q1,2=@q2  -- --id=@q0 create Queue other-config:min-rate=10000000 other-config:max-rate=50000000  -- --id=@q1 create Queue other-config:min-rate=5000000 other-config:max-rate=20000000  -- --id=@q2 create Queue other-config:min-rate=5000000 other-config:max-rate=15000000
+
+sudo ovs-ofctl queue-stats s1
