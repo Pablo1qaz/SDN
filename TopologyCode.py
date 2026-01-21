@@ -1,4 +1,5 @@
 from mininet.topo import Topo
+from mininet.link import TCLink
 
 class MyTopo(Topo):
     "Topologia z podwojnym laczem miedzy S1 i S2"
@@ -22,7 +23,7 @@ class MyTopo(Topo):
         self.addLink(h6, s2)
 
         # DWA LINKI (Porty 4 i 5 utworza sie automatycznie)
-        self.addLink(s1, s2)
-        self.addLink(s1, s2)
+        self.addLink(s1, s2, port1=4, port2=4)
+        self.addLink(s1, s2, port1=5, port2=5)
 
 topos = { 'mytopo': ( lambda: MyTopo() ) }
