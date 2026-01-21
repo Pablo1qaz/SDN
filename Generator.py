@@ -5,43 +5,44 @@ import sys
 import subprocess
 import time
 import random
+import argparse # Dodano do obsługi argumentów
 
 # --- KONFIGURACJA ---
 
-# Lista adresow IP WSZYSTKICH serwerow z topologii (h4, h5, h6)
-# Dzieki temu ruch rozlozy sie na cala siec
 SERVERS = ['10.0.0.4', '10.0.0.5', '10.0.0.6']
 
-# Przypisanie portow (zgodne z kontrolerem Java)
 PORTS = {
     'GAME': 5001,      # Port 4 w Switchu (VIP)
     'VIDEO': 5002,     # Port 4 w Switchu (VIP)
     'DOWNLOAD': 5003   # Port 5 w Switchu (TLO)
 }
 
-def print_usage():
-    print "Uzycie: python traffic_gen.py [TYP_RUCHU]"
-    print "Dostepne typy: GAME, VIDEO, DOWNLOAD"
-    print "Przyklad 1 (Losowo): python traffic_gen.py"
-    print "Przyklad 2 (Tylko gra): python traffic_gen.py GAME"
-
-def generate_traffic(forced_type=None):
+def generate_traffic(forced_type=None, forced_ip=None):
     print "--- START GENERATORA RUCHU ---"
-    print "Cele (Serwery): {}".format(SERVERS)
     
-    if forced_type:
-        print "TRYB WYMUSZONY: Wysylam tylko ruch typu {}".format(forced_type)
+    # Informacja o trybie IP
+    if forced_ip:
+        print "TRYB IP: Wysylam TYLKO do serwera {}".format(forced_ip)
     else:
-        print "TRYB MIESZANY: Losowe typy ruchu (Gra/Wideo/Pliki)"
+        print "TRYB IP: Losowe serwery z listy {}".format(SERVERS)
+
+    # Informacja o trybie Typu
+    if forced_type:
+        print "TRYB TYPU: Wysylam TYLKO ruch typu {}".format(forced_type)
+    else:
+        print "TRYB TYPU: Mieszany (Losowe typy ruchu)"
         
     print "Nacisnij CTRL+C aby zakonczyc."
 
     try:
         while True:
-            # 1. Wybor losowego serwera z listy (rozlozenie obciazenia)
-            target_ip = random.choice(SERVERS)
+            # 1. Wybor serwera (wymuszony lub losowy)
+            if forced_ip:
+                target_ip = forced_ip
+            else:
+                target_ip = random.choice(SERVERS)
 
-            # 2. Wybor typu ruchu
+            # 2. Wybor typu ruchu (wymuszony lub losowy)
             if forced_type:
                 traffic_type = forced_type
             else:
@@ -55,19 +56,17 @@ def generate_traffic(forced_type=None):
             cmd = []
             
             if traffic_type == 'GAME':
-                # Symulacja GRY: Male pakiety (len 100), mala przepustowosc (500K), UDP
-                bw = "500K"
+                # Zmienilem bw na 500K (zgodnie z logika gry), bo 500M to bardzo duzo jak na UDP game
+                bw = "500K" 
                 print "[>] Cel: {}:{} | Typ: GRA (UDP, {}) przez {}s...".format(target_ip, port, bw, duration)
                 cmd = ["iperf", "-c", target_ip, "-u", "-p", str(port), "-b", bw, "-t", str(duration), "-l", "100"] 
             
             elif traffic_type == 'VIDEO':
-                # Symulacja WIDEO: Wieksza przepustowosc (2-5M), UDP
-                bw = "{}M".format(random.randint(2, 5))
+                bw = "20M"
                 print "[>] Cel: {}:{} | Typ: STREAM (UDP, {}) przez {}s...".format(target_ip, port, bw, duration)
                 cmd = ["iperf", "-c", target_ip, "-u", "-p", str(port), "-b", bw, "-t", str(duration)]
             
             elif traffic_type == 'DOWNLOAD':
-                # Symulacja POBIERANIA: Maksymalna przepustowosc TCP
                 print "[>] Cel: {}:{} | Typ: POBIERANIE (TCP) przez {}s...".format(target_ip, port, duration)
                 cmd = ["iperf", "-c", target_ip, "-p", str(port), "-t", str(duration)]
 
@@ -84,8 +83,7 @@ def generate_traffic(forced_type=None):
                 err_msg = stderr.strip() if stderr else "Blad polaczenia"
                 print "    [Blad]: {}".format(err_msg)
             
-            # Losowa przerwa miedzy sesjami (symulacja zachowania czlowieka)
-            sleep_time = random.randint(1, 3)
+            sleep_time = random.randint(2, 3)
             print "    (Czekam {}s...)\n".format(sleep_time)
             time.sleep(sleep_time)
 
@@ -93,14 +91,19 @@ def generate_traffic(forced_type=None):
         print "\n--- ZATRZYMANO GENERATOR ---"
 
 if __name__ == "__main__":
-    # Obsluga argumentu z linii komend
-    mode = None
-    if len(sys.argv) > 1:
-        arg = sys.argv[1].upper()
-        if arg in ['GAME', 'VIDEO', 'DOWNLOAD']:
-            mode = arg
-        else:
-            print_usage()
-            sys.exit(1)
-            
-    generate_traffic(mode)
+    # Uzycie argparse dla wygodniejszej obslugi flag
+    parser = argparse.ArgumentParser(description='Generator ruchu sieciowego dla Mininet')
+    
+    parser.add_argument('--type', '-t', 
+                        choices=['GAME', 'VIDEO', 'DOWNLOAD'], 
+                        help='Wymus konkretny typ ruchu (np. GAME)', 
+                        default=None)
+                        
+    parser.add_argument('--ip', '-i', 
+                        help='Wymus konkretny adres IP serwera (np. 10.0.0.4)', 
+                        default=None)
+
+    args = parser.parse_args()
+    
+    # Uruchomienie z sparsowanymi argumentami
+    generate_traffic(forced_type=args.type, forced_ip=args.ip)
