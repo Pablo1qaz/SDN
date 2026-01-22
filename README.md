@@ -28,20 +28,24 @@ Topologia składa się z następujących elementów:
 * **Serwery (Servers):** Server1, Server2, Server3 (podłączeni do S2)
 * **Łącza między przełącznikami:** Dwa łącza fizyczne. Zarządzanie QoS odbywa się na głównym łączu transmisyjnym.
 
-### Mapowanie Ruchu
-Klient losuje serwer oraz typ ruchu. Aby uruchomić należy użyć poleceń:
-
-```bash
-sudo python generator.py --ip 10.0.0.4 --type GAME
-sudo python generator.py --ip 10.0.0.4 --type VIDEO
-```
-
 ## Uruchomienie Topologii
 
 Aby uruchomić emulację sieci w środowisku Mininet i podłączyć ją do zdalnego kontrolera, należy użyć poniższego polecenia:
 
 ```bash
 sudo mn --custom topo.py --topo mytopo --controller=remote,ip=127.0.0.1,port=6653
+```
+
+### Mapowanie Ruchu
+Klient losuje serwer oraz typ ruchu.
+
+![Schemat Topologii](TrafficDiagram.png)
+
+Aby uruchomić należy użyć poleceń:
+
+```bash
+sudo python generator.py --ip 10.0.0.4 --type GAME
+sudo python generator.py --ip 10.0.0.4 --type VIDEO
 ```
 
 ## Przypisanie kolejek
