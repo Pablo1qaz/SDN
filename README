@@ -24,11 +24,11 @@ sudo ovs-ofctl queue-stats s1
 
 # Gwarancja Jakości (QoS) dla Gier i Streamingu Wideo w SDN
 
-## Przegląd Projektu
+##Przegląd Projektu
 
 Ten projekt implementuje mechanizm Quality of Service (QoS) w środowisku sieci programowalnej (SDN). Celem projektu jest zapewnienie niskich opóźnień i gwarantowanej przepustowości dla ruchu gier komputerowych przy jednoczesnym obsłużeniu ruchu wideo i pobierania plików. System dynamicznie dostosowuje pasmo dla strumieniowania wideo, gdy wykryty zostanie ruch generowany przez gry.
 
-## Zasada Działania QoS
+##Zasada Działania QoS
 
 Algorytm zarządzania pasmem jest wykonywany w kontrolerze SDN i reaguje na zmiany w sieci w czasie rzeczywistym.
 
@@ -39,7 +39,7 @@ Algorytm zarządzania pasmem jest wykonywany w kontrolerze SDN i reaguje na zmia
 5. **Dynamiczne dławienie:** W momencie wykrycia aktywnego ruchu gry, przepustowość dla Wideo jest automatycznie ograniczana do **15 Mbps**, aby zwolnić zasoby dla gry.
 6. Ruch typu **Pobieranie** jest obsługiwany w trybie "Best Effort" (wykorzystuje pozostałe wolne zasoby).
 
-## Topologia Sieci
+##Topologia Sieci
 
 Topologia została zaprojektowana w Mininet i składa się z dwóch głównych przełączników połączonych dwoma łączami, obsługujących klientów i serwery.
 
@@ -51,13 +51,13 @@ Topologia składa się z następujących elementów:
 * **Serwery (Servers):** Server1, Server2, Server3 (podłączeni do S2)
 * **Łącza między przełącznikami:** Dwa łącza fizyczne. Zarządzanie QoS odbywa się na głównym łączu transmisyjnym.
 
-### Mapowanie Ruchu
+###Mapowanie Ruchu
 Hosty generują ruch w specyficznych kategoriach:
 * **Client1 <-> Server1:** Streaming Wideo
 * **Client2 <-> Server2:** Gra Online (Niskie opóźnienia)
 * **Client3 <-> Server3:** Pobieranie Plików (Tło)
 
-## Uruchomienie Topologii
+##Uruchomienie Topologii
 
 Aby uruchomić emulację sieci w środowisku Mininet i podłączyć ją do zdalnego kontrolera, należy użyć poniższego polecenia:
 
