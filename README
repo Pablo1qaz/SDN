@@ -21,8 +21,7 @@ sudo ovs-vsctl set port s1-eth5 qos=@newqos -- --id=@newqos create qos type=linu
 
 sudo ovs-ofctl queue-stats s1
 
-
-# Gwarancja Jakości (QoS) dla Gier i Streamingu Wideo w SDN
+#Gwarancja Jakości (QoS) dla Gier i Streamingu Wideo w SDN
 
 ##Przegląd Projektu
 
