@@ -45,7 +45,7 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
 
     // Pola do śledzenia aktywności gry
     private long lastGamePacketTime = 0;
-    private static final long GAME_ACTIVE_THRESHOLD_MS = 3000;
+    private static final long GAME_ACTIVE_THRESHOLD_MS = 6000;
 
     @Override
     public String getName() {
@@ -129,6 +129,11 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
                         if (dstPort == 5001) {
                             // GRA (5001)
                             lastGamePacketTime = System.currentTimeMillis();
+
+                            // [NOWOŚĆ] Usuwamy istniejące flowy, które kierują na Port 4
+                            removeFlowsOnPort(sw, OFPort.of(4));
+                            logger.info("S1: Usunieto stare flowy na Port 4");
+
                             outPort = OFPort.of(4);
                             queueId = 1; 
                             logger.info("S1: Wykryto GRE (UDP 5001) -> Port 4 (Kolejka 1)");
@@ -147,7 +152,6 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
                         else {
                             // [ZMIANA] Inny UDP -> Tło (Port 5) + Kolejka 0
                             outPort = OFPort.of(5);
-                            // logger.info("S1: Inny UDP -> Port 5 (Kolejka 0)");
                         }
                     } 
                     else if (ipv4.getProtocol() == IpProtocol.TCP) {
@@ -222,7 +226,7 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
             mb.setExact(MatchField.IP_PROTO, IpProtocol.UDP);
             UDP udp = (UDP) ipv4.getPayload();
             mb.setExact(MatchField.UDP_DST, udp.getDestinationPort());
-        } else if (ipv4.getProtocol() == IpProtocol.TCP) { // Dodano obsługę TCP w Match dla kolejek
+        } else if (ipv4.getProtocol() == IpProtocol.TCP) { 
             mb.setExact(MatchField.IP_PROTO, IpProtocol.TCP);
             TCP tcp = (TCP) ipv4.getPayload();
             mb.setExact(MatchField.TCP_DST, tcp.getDestinationPort());
@@ -310,5 +314,17 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
                 .build();
 
         sw.write(po);
+    }
+
+    private void removeFlowsOnPort(IOFSwitch sw, OFPort outPort) {
+        // Tworzymy pusty Match - oznacza to dopasowanie "wszystkiego"
+        Match matchAll = sw.getOFFactory().buildMatch().build();
+
+        OFFlowMod flowDelete = sw.getOFFactory().buildFlowDelete()
+                .setMatch(matchAll) // Ustawiamy pusty match (wszystkie pakiety)
+                .setOutPort(outPort) // Ale usuwamy tylko te, które mają ten port wyjściowy
+                .build();
+
+        sw.write(flowDelete);
     }
 }
