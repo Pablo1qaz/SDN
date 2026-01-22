@@ -8,9 +8,10 @@ iperf -s -u -p 5001 -i 1
 iperf -s -u -p 5002 -i 1
 iperf -s -p 5003
 
-wysyłanie ruchu klientem:
+Wysyłanie ruchu klientem:
 
 sudo python generator.py --ip 10.0.0.4 --type GAME
+sudo python generator.py --ip 10.0.0.4 --type VIDEO
 
 przypisanie kolejek:
 
