@@ -38,13 +38,8 @@ Hosty generują ruch w specyficznych kategoriach:
 Aby uruchomić emulację sieci w środowisku Mininet i podłączyć ją do zdalnego kontrolera, należy użyć poniższego polecenia:
 
 ```bash
-sudo mn --custom topology_qos.py --topo mytopo --controller=remote,ip=controller_ip,port=6653
-
-
-
-Uruchamianie topologii:
-
 sudo mn --custom topo.py --topo mytopo --controller=remote,ip=127.0.0.1,port=6653
+
 
 Nasłuchiwanie na serwerze iperfem:
 
