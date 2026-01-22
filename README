@@ -1,26 +1,3 @@
-Uruchamianie topologii:
-
-sudo mn --custom topo.py --topo mytopo --controller=remote,ip=127.0.0.1,port=6653
-
-Nasłuchiwanie na serwerze iperfem:
-
-iperf -s -u -p 5001 -i 1
-iperf -s -u -p 5002 -i 1
-iperf -s -p 5003
-
-Wysyłanie ruchu klientem:
-
-sudo python generator.py --ip 10.0.0.4 --type GAME
-sudo python generator.py --ip 10.0.0.4 --type VIDEO
-
-przypisanie kolejek:
-
-sudo ovs-vsctl set Port s1-eth4 qos=@newqos  -- --id=@newqos create QoS type=linux-htb other-config:max-rate=20000000 queues=0=@q0,1=@q1,2=@q2  -- --id=@q0 create Queue other-config:min-rate=20000000 other-config:max-rate=20000000  -- --id=@q1 create Queue other-config:min-rate=5000000 other-config:max-rate=20000000  -- --id=@q2 create Queue other-config:min-rate=5000000 other-config:max-rate=15000000
-
-sudo ovs-vsctl set port s1-eth5 qos=@newqos -- --id=@newqos create qos type=linux-htb other-config:max-rate=1000000 queues=0=@q0 -- --id=@q0 create queue other-config:min-rate=1000000 other-config:max-rate=1000000
-
-sudo ovs-ofctl queue-stats s1
-
 #Gwarancja Jakości (QoS) dla Gier i Streamingu Wideo w SDN
 
 ##Przegląd Projektu
@@ -62,3 +39,28 @@ Aby uruchomić emulację sieci w środowisku Mininet i podłączyć ją do zdaln
 
 ```bash
 sudo mn --custom topology_qos.py --topo mytopo --controller=remote,ip=controller_ip,port=6653
+
+
+
+Uruchamianie topologii:
+
+sudo mn --custom topo.py --topo mytopo --controller=remote,ip=127.0.0.1,port=6653
+
+Nasłuchiwanie na serwerze iperfem:
+
+iperf -s -u -p 5001 -i 1
+iperf -s -u -p 5002 -i 1
+iperf -s -p 5003
+
+Wysyłanie ruchu klientem:
+
+sudo python generator.py --ip 10.0.0.4 --type GAME
+sudo python generator.py --ip 10.0.0.4 --type VIDEO
+
+przypisanie kolejek:
+
+sudo ovs-vsctl set Port s1-eth4 qos=@newqos  -- --id=@newqos create QoS type=linux-htb other-config:max-rate=20000000 queues=0=@q0,1=@q1,2=@q2  -- --id=@q0 create Queue other-config:min-rate=20000000 other-config:max-rate=20000000  -- --id=@q1 create Queue other-config:min-rate=5000000 other-config:max-rate=20000000  -- --id=@q2 create Queue other-config:min-rate=5000000 other-config:max-rate=15000000
+
+sudo ovs-vsctl set port s1-eth5 qos=@newqos -- --id=@newqos create qos type=linux-htb other-config:max-rate=1000000 queues=0=@q0 -- --id=@q0 create queue other-config:min-rate=1000000 other-config:max-rate=1000000
+
+sudo ovs-ofctl queue-stats s1
