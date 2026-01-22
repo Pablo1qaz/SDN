@@ -19,6 +19,7 @@ Algorytm zarządzania pasmem jest wykonywany w kontrolerze SDN i reaguje na zmia
 
 Topologia została zaprojektowana w Mininet i składa się z dwóch głównych przełączników połączonych dwoma łączami, obsługujących klientów i serwery.
 
+![Schemat Topologii](topology2.png)
 
 Topologia składa się z następujących elementów:
 
