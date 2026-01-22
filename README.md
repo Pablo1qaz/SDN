@@ -29,7 +29,7 @@ Topologia składa się z następujących elementów:
 * **Łącza między przełącznikami:** Dwa łącza fizyczne. Zarządzanie QoS odbywa się na głównym łączu transmisyjnym.
 
 ### Mapowanie Ruchu
-Klient losuje Serwer oraz typ ruchu. Aby to uruchomić należy użyć poleceń:
+Klient losuje serwer oraz typ ruchu. Aby uruchomić należy użyć poleceń:
 
 ```bash
 sudo python generator.py --ip 10.0.0.4 --type GAME
