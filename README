@@ -10,7 +10,7 @@ iperf -s -p 5003
 
 wysyłanie ruchu klientem:
 
-sudo python 
+sudo python generator.py --ip 10.0.0.4 --type GAME
 
 przypisanie kolejek:
 
