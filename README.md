@@ -13,7 +13,7 @@ Algorytm zarządzania pasmem jest wykonywany w kontrolerze SDN i reaguje na zmia
 3. Ruch typu **Gra** posiada najwyższy priorytet i ma zarezerwowane **5 Mbps** pasma.
 4. Ruch typu **Wideo** domyślnie może wykorzystać do **20 Mbps**.
 5. **Dynamiczne dławienie:** W momencie wykrycia aktywnego ruchu gry, przepustowość dla Wideo jest automatycznie ograniczana do **15 Mbps**, aby zwolnić zasoby dla gry.
-6. Ruch typu **Pobieranie** jest obsługiwany w trybie "Best Effort" (wykorzystuje pozostałe wolne zasoby).
+6. Ruch typu **Pobieranie** jest obsługiwany w trybie "Best Effort" - wykorzystuje pozostałe wolne zasoby.
 
 ## Topologia Sieci
 
