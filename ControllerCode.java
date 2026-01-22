@@ -11,19 +11,17 @@ import org.projectfloodlight.openflow.protocol.OFMessage;
 import org.projectfloodlight.openflow.protocol.OFPacketIn;
 import org.projectfloodlight.openflow.protocol.OFPacketOut;
 import org.projectfloodlight.openflow.protocol.OFType;
-import org.projectfloodlight.openflow.protocol.OFVersion;
 import org.projectfloodlight.openflow.protocol.action.OFAction;
 import org.projectfloodlight.openflow.protocol.action.OFActionOutput;
+import org.projectfloodlight.openflow.protocol.action.OFActionEnqueue;
 import org.projectfloodlight.openflow.protocol.match.Match;
 import org.projectfloodlight.openflow.protocol.match.MatchField;
 import org.projectfloodlight.openflow.types.DatapathId;
 import org.projectfloodlight.openflow.types.EthType;
 import org.projectfloodlight.openflow.types.IPv4Address;
 import org.projectfloodlight.openflow.types.IpProtocol;
-import org.projectfloodlight.openflow.types.MacAddress;
 import org.projectfloodlight.openflow.types.OFBufferId;
 import org.projectfloodlight.openflow.types.OFPort;
-import org.projectfloodlight.openflow.types.TransportPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +33,6 @@ import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
-import net.floodlightcontroller.packet.ARP;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.packet.IPv4;
 import net.floodlightcontroller.packet.TCP;
@@ -45,6 +42,10 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
 
     protected IFloodlightProviderService floodlightProvider;
     protected static Logger logger;
+
+    // Pola do śledzenia aktywności gry
+    private long lastGamePacketTime = 0;
+    private static final long GAME_ACTIVE_THRESHOLD_MS = 3000;
 
     @Override
     public String getName() {
@@ -93,7 +94,6 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
     @Override
     public net.floodlightcontroller.core.IListener.Command receive(IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
 
-        // Obslugujemy tylko Packet_In
         if (msg.getType() != OFType.PACKET_IN) {
             return Command.CONTINUE;
         }
@@ -101,36 +101,53 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
         OFPacketIn pin = (OFPacketIn) msg;
         Ethernet eth = IFloodlightProviderService.bcStore.get(cntx, IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
 
-        // 1. OBSLUGA ARP (Niezbedne do Pingu!)
+        // 1. OBSLUGA ARP
         if (eth.getEtherType() == EthType.ARP) {
-            // Jeśli to ARP, wyslij jako FLOOD (do wszystkich portow)
             doPacketOut(sw, pin, OFPort.FLOOD);
             return Command.CONTINUE;
         }
 
-        // 2. OBSLUGA IP (Logika Sterowania)
+        // 2. OBSLUGA IP
         if (eth.getEtherType() == EthType.IPv4) {
             IPv4 ipv4 = (IPv4) eth.getPayload();
-            OFPort outPort = OFPort.FLOOD; // Domyslnie flood, jesli nie znajdziemy reguly
+            OFPort outPort = OFPort.FLOOD;
+            
+            // Zmienna queueId: -1 oznacza brak kolejki (standard output)
+            long queueId = -1;
 
             DatapathId dpid = sw.getId();
             
-            // --- LOGIKA DLA SWITCHA S1 (ID ...:01) ---
+            // --- LOGIKA DLA SWITCHA S1 ---
             if (dpid.getLong() == 1) {
-                // A. Ruch w strone serwerow (h4, h5, h6) - TU ROBIMY TRAFFIC ENGINEERING
+                // A. Ruch w strone serwerow
                 if (isServerIP(ipv4.getDestinationAddress())) {
                     
                     if (ipv4.getProtocol() == IpProtocol.UDP) {
                         UDP udp = (UDP) ipv4.getPayload();
                         int dstPort = udp.getDestinationPort().getPort();
 
-                        if (dstPort == 5001 || dstPort == 5002) {
-                            // GRA lub WIDEO -> Szybki link (Port 4)
+                        if (dstPort == 5001) {
+                            // GRA (5001)
+                            lastGamePacketTime = System.currentTimeMillis();
                             outPort = OFPort.of(4);
-                            logger.info("S1: Wykryto PRIORYTET (UDP " + dstPort + ") -> Port 4");
-                        } else {
-                            // Inny UDP -> Tło (Port 5)
+                            queueId = 1; 
+                            logger.info("S1: Wykryto GRE (UDP 5001) -> Port 4 (Kolejka 1)");
+                        } 
+                        else if (dstPort == 5002) {
+                            // VIDEO (5002)
+                            outPort = OFPort.of(4);
+                            if (System.currentTimeMillis() - lastGamePacketTime < GAME_ACTIVE_THRESHOLD_MS) {
+                                queueId = 2; // Ograniczona (Gra aktywna)
+                                logger.info("S1: VIDEO (UDP 5002) -> Port 4 [Kolejka 2] (Gra AKTYWNA)");
+                            } else {
+                                queueId = 0; // Domyślna (Gra nieaktywna)
+                                logger.info("S1: VIDEO (UDP 5002) -> Port 4 [Kolejka 0] (Gra NIEAKTYWNA)");
+                            }
+                        } 
+                        else {
+                            // [ZMIANA] Inny UDP -> Tło (Port 5) + Kolejka 0
                             outPort = OFPort.of(5);
+                            // logger.info("S1: Inny UDP -> Port 5 (Kolejka 0)");
                         }
                     } 
                     else if (ipv4.getProtocol() == IpProtocol.TCP) {
@@ -138,52 +155,56 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
                         int dstPort = tcp.getDestinationPort().getPort();
                         
                         if (dstPort == 5003) {
-                            // PLIKI -> Tło (Port 5)
+                            // [ZMIANA] TŁO (TCP 5003) -> Port 5 + Kolejka 0
                             outPort = OFPort.of(5);
-                            logger.info("S1: Wykryto TLO (TCP 5003) -> Port 5");
+                            logger.info("S1: Wykryto TLO (TCP 5003) -> Port 5 (Kolejka 0)");
                         } else {
+                            // [ZMIANA] Inny TCP -> Port 5 + Kolejka 0
                             outPort = OFPort.of(5);
                         }
                     } else {
-                        // ICMP (Ping) i inne -> Tło
+                        // [ZMIANA] Inny protokół IP -> Port 5 + Kolejka 0
                         outPort = OFPort.of(5);
                     }
                 } 
-                // B. Ruch lokalny do klientow
+                // B. Ruch lokalny
                 else if (ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.1"))) outPort = OFPort.of(1);
                 else if (ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.2"))) outPort = OFPort.of(2);
                 else if (ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.3"))) outPort = OFPort.of(3);
             }
 
-            // --- LOGIKA DLA SWITCHA S2 (ID ...:02) ---
+            // --- LOGIKA DLA SWITCHA S2 ---
             else if (dpid.getLong() == 2) {
-                // A. Ruch do serwerow (lokalny)
                 if (ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.4"))) outPort = OFPort.of(1);
                 else if (ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.5"))) outPort = OFPort.of(2);
                 else if (ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.6"))) outPort = OFPort.of(3);
-                
-                // B. Ruch powrotny do S1 (do klientow)
                 else {
-                    // Odsylamy szybkim kablem (Port 4) zeby nie opozniac powrotow
                     outPort = OFPort.of(4);
                 }
             }
 
-            // Jesli znalezlismy konkretny port (nie FLOOD), instalujemy regule na switchu
+            // --- INSTALACJA REGUL ---
             if (outPort != OFPort.FLOOD) {
-                installRule(sw, ipv4, outPort); // Wgrywa flow do switcha (zapamietuje)
-                doPacketOut(sw, pin, outPort);  // Wysyla ten konkretny pakiet
+                if (queueId != -1) {
+                    // Instalujemy regułę z akcją ENQUEUE
+                    installRuleWithQueue(sw, ipv4, outPort, queueId);
+                    doPacketOutWithQueue(sw, pin, outPort, queueId);
+                } else {
+                    // Instalujemy regułę z akcją OUTPUT (Standard)
+                    installRule(sw, ipv4, outPort);
+                    doPacketOut(sw, pin, outPort);
+                }
             } else {
-                doPacketOut(sw, pin, OFPort.FLOOD); // Nie wiemy gdzie, wiec flood
+                doPacketOut(sw, pin, OFPort.FLOOD);
             }
             
-            return Command.STOP; // Przejelismy pakiet, nie przekazuj dalej
+            return Command.STOP;
         }
 
         return Command.CONTINUE;
     }
 
-    // --- Metody pomocnicze (zamiast zewnetrznej klasy Flows) ---
+    // --- Metody pomocnicze ---
 
     private boolean isServerIP(IPv4Address ip) {
         return ip.equals(IPv4Address.of("10.0.0.4")) || 
@@ -191,13 +212,45 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
                ip.equals(IPv4Address.of("10.0.0.6"));
     }
 
-    // Instaluje regule (FlowMod) w switchu
+    // Instaluje regułę z kolejką
+    private void installRuleWithQueue(IOFSwitch sw, IPv4 ipv4, OFPort outPort, long queueId) {
+        Match.Builder mb = sw.getOFFactory().buildMatch();
+        mb.setExact(MatchField.ETH_TYPE, EthType.IPv4)
+          .setExact(MatchField.IPV4_DST, ipv4.getDestinationAddress());
+
+        if (ipv4.getProtocol() == IpProtocol.UDP) {
+            mb.setExact(MatchField.IP_PROTO, IpProtocol.UDP);
+            UDP udp = (UDP) ipv4.getPayload();
+            mb.setExact(MatchField.UDP_DST, udp.getDestinationPort());
+        } else if (ipv4.getProtocol() == IpProtocol.TCP) { // Dodano obsługę TCP w Match dla kolejek
+            mb.setExact(MatchField.IP_PROTO, IpProtocol.TCP);
+            TCP tcp = (TCP) ipv4.getPayload();
+            mb.setExact(MatchField.TCP_DST, tcp.getDestinationPort());
+        }
+
+        OFActionEnqueue action = sw.getOFFactory().actions().buildEnqueue()
+                .setPort(outPort)
+                .setQueueId(queueId)
+                .build();
+
+        OFFlowMod flowAdd = sw.getOFFactory().buildFlowAdd()
+                .setBufferId(OFBufferId.NO_BUFFER)
+                .setHardTimeout(30)
+                .setIdleTimeout(2) 
+                .setPriority(200)
+                .setMatch(mb.build())
+                .setActions(Collections.singletonList((OFAction) action))
+                .build();
+
+        sw.write(flowAdd);
+    }
+
+    // Standardowa reguła Output
     private void installRule(IOFSwitch sw, IPv4 ipv4, OFPort outPort) {
         Match.Builder mb = sw.getOFFactory().buildMatch();
         mb.setExact(MatchField.ETH_TYPE, EthType.IPv4)
           .setExact(MatchField.IPV4_DST, ipv4.getDestinationAddress());
 
-        // Jesli to TCP/UDP, dodaj dopasowanie po porcie, zeby nie zablokowac innego ruchu
         if (ipv4.getProtocol() == IpProtocol.UDP) {
             mb.setExact(MatchField.IP_PROTO, IpProtocol.UDP);
             UDP udp = (UDP) ipv4.getPayload();
@@ -215,8 +268,8 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
 
         OFFlowMod flowAdd = sw.getOFFactory().buildFlowAdd()
                 .setBufferId(OFBufferId.NO_BUFFER)
-                .setHardTimeout(30) // Regula wygasa po 30s bezczynnosci (dla bezpieczenstwa)
-                .setIdleTimeout(10)
+                .setHardTimeout(30)
+                .setIdleTimeout(1)
                 .setPriority(100)
                 .setMatch(mb.build())
                 .setActions(Collections.singletonList((OFAction) action))
@@ -225,7 +278,24 @@ public class SdnLabListener implements IFloodlightModule, IOFMessageListener {
         sw.write(flowAdd);
     }
 
-    // Wysyla pojedynczy pakiet (PacketOut)
+    // PacketOut z Enqueue
+    private void doPacketOutWithQueue(IOFSwitch sw, OFPacketIn pin, OFPort outPort, long queueId) {
+        OFActionEnqueue action = sw.getOFFactory().actions().buildEnqueue()
+                .setPort(outPort)
+                .setQueueId(queueId)
+                .build();
+
+        OFPacketOut po = sw.getOFFactory().buildPacketOut()
+                .setBufferId(pin.getBufferId())
+                .setInPort(pin.getInPort())
+                .setActions(Collections.singletonList((OFAction) action))
+                .setData(pin.getData())
+                .build();
+
+        sw.write(po);
+    }
+
+    // Standardowy PacketOut
     private void doPacketOut(IOFSwitch sw, OFPacketIn pin, OFPort outPort) {
         OFActionOutput action = sw.getOFFactory().actions().buildOutput()
                 .setPort(outPort)
