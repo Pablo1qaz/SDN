@@ -34,6 +34,7 @@ Klient losuje Serwer oraz typ ruchu. Aby to uruchomić należy użyć poleceń:
 ```bash
 sudo python generator.py --ip 10.0.0.4 --type GAME
 sudo python generator.py --ip 10.0.0.4 --type VIDEO
+```
 
 ## Uruchomienie Topologii
 
