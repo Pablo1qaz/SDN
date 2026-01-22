@@ -8,8 +8,14 @@ iperf -s -u -p 5001 -i 1
 iperf -s -u -p 5002 -i 1
 iperf -s -p 5003
 
+wysyłanie ruchu klientem:
+
+sudo python 
+
 przypisanie kolejek:
 
 sudo ovs-vsctl set Port s1-eth4 qos=@newqos  -- --id=@newqos create QoS type=linux-htb other-config:max-rate=20000000 queues=0=@q0,1=@q1,2=@q2  -- --id=@q0 create Queue other-config:min-rate=20000000 other-config:max-rate=20000000  -- --id=@q1 create Queue other-config:min-rate=5000000 other-config:max-rate=20000000  -- --id=@q2 create Queue other-config:min-rate=5000000 other-config:max-rate=15000000
+
+sudo ovs-vsctl set port s1-eth5 qos=@newqos -- --id=@newqos create qos type=linux-htb other-config:max-rate=1000000 queues=0=@q0 -- --id=@q0 create queue other-config:min-rate=1000000 other-config:max-rate=1000000
 
 sudo ovs-ofctl queue-stats s1
