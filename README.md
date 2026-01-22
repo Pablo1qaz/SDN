@@ -57,3 +57,9 @@ Następnie, żeby sprawdzić przypisanie:
 ```bash
 sudo ovs-ofctl queue-stats s1
 ```
+## Autorzy:
+Paweł Oleszczak
+Sebastian Gawlak
+Gabriel Kraj
+Kacper Janicki
+
