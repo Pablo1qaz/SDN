@@ -29,10 +29,11 @@ Topologia składa się z następujących elementów:
 * **Łącza między przełącznikami:** Dwa łącza fizyczne. Zarządzanie QoS odbywa się na głównym łączu transmisyjnym.
 
 ### Mapowanie Ruchu
-Hosty generują ruch w specyficznych kategoriach:
-* **Client1 <-> Server1:** Streaming Wideo
-* **Client2 <-> Server2:** Gra Online (Niskie opóźnienia)
-* **Client3 <-> Server3:** Pobieranie Plików (Tło)
+Klient losuje Serwer oraz typ ruchu. Aby to uruchomić należy użyć poleceń:
+
+```bash
+sudo python generator.py --ip 10.0.0.4 --type GAME
+sudo python generator.py --ip 10.0.0.4 --type VIDEO
 
 ## Uruchomienie Topologii
 
